@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<!--
+═══════════════════════════════════════════════════════════════════
+  🌸 JARDIN DES SOUVENIRS — page cadeau interactive
+═══════════════════════════════════════════════════════════════════
+
+  COMMENT PERSONNALISER (tout se passe dans ce fichier) :
+
+  1. LES MESSAGES
+     Cherche « const messages = [ » plus bas dans le <script>.
+     Chaque entrée a :
+       - titre : le petit titre de la carte
+       - texte : ton mot doux / souvenir
+       - fleur : l'emoji de fleur planté dans la zone (et qui pleut
+                 quand elle est découverte) — mets celui que tu veux
+       - image : photo affichée en haut de la carte. Mets le chemin
+                 d'un fichier placé à côté de index.html (ex:
+                 "photos/nous.jpg") ou une adresse https. Laisse ""
+                 pour une carte sans photo. ⚠️ Si tu envoies la page,
+                 pense à joindre le dossier photos avec le fichier.
+       - x, y  : position de la zone sur l'écran, en % (x = gauche→droite,
+                 y = haut→bas). Garde des valeurs entre 8 et 92.
+
+  2. LE NOMBRE DE ZONES ET L'ORDRE
+     Ajoute ou supprime simplement des entrées dans « messages ».
+     Le compteur, les zones et la scène finale s'adaptent tout seuls.
+     Les souvenirs se découvrent dans l'ordre des id : seule la
+     prochaine zone de la séquence peut apparaître et être trouvée.
+     Change les id pour changer l'ordre du parcours.
+
+  3. LE MESSAGE FINAL
+     Cherche « const messageFinal = » : titre + texte de la scène
+     de fin (affichée quand tout est découvert).
+
+  3bis. LA MUSIQUE DE FOND
+     Place un fichier audio (mp3) à côté de index.html et renseigne
+     son nom dans « const musique = » (fichier + volume de 0 à 1).
+     Elle démarre au premier toucher de la fleur (les navigateurs
+     bloquent le son avant une interaction) et tourne en boucle.
+     Un petit bouton ♪ en haut à droite permet de la couper.
+     Laisse fichier: "" pour une page sans musique.
+     ⚠️ Comme les photos, pense à joindre le fichier audio à l'envoi.
+
+  4. LES COULEURS
+     Cherche « :root » tout en haut du <style>. Change les variables :
+       --rose, --rose-fonce, --creme, --or, --encre.
+
+  5. LES PRÉNOMS / TITRE DE LA PAGE
+     Cherche « <h1 » et la balise <title>.
+═══════════════════════════════════════════════════════════════════
+-->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Pour toi 🌸</title>
+<style>
+  /* ── Palette (à personnaliser ici) ────────────────────────── */
+  :root {
+    --rose:       #f3d9e3;   /* rose poudré clair            */
+    --rose-fonce: #d9a3b8;   /* rose plus soutenu            */
+    --creme:      #fdf9f4;   /* blanc cassé                  */
+    --or:         #c9a45c;   /* doré                         */
+    --or-clair:   #e8d5ab;   /* doré pâle (halos)            */
+    --encre:      #6b4a58;   /* couleur du texte             */
+    /* Polices : cursive pour les messages, sobre pour le reste */
+    --police-cursive: "Snell Roundhand", "Segoe Script", "Brush Script MT", "Comic Sans MS", cursive;
+    --police-texte:   Georgia, "Times New Roman", serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;               /* pas de scroll : tout tient à l'écran */
+    font-family: var(--police-texte);
+    color: var(--encre);
+    /* Fond : dégradé doux animé */
+    background: linear-gradient(160deg, var(--creme), var(--rose), #f7e8ee, var(--creme));
+    background-size: 300% 300%;
+    animation: fond-anime 18s ease-in-out infinite;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  @keyframes fond-anime {
+    0%, 100% { background-position: 0% 30%; }
+    50%      { background-position: 100% 70%; }
+  }
+
+  /* ── En-tête : titre + compteur ───────────────────────────── */
+  header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    text-align: center;
+    padding: 14px 10px 0;
+    z-index: 5;
+    pointer-events: none;
+  }
+  h1 {
+    font-family: var(--police-cursive);
+    font-weight: normal;
+    font-size: clamp(1.5rem, 5vw, 2.3rem);
+    color: var(--encre);
+    text-shadow: 0 1px 4px rgba(255,255,255,.7);
+  }
+  #compteur {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: .85rem;
+    letter-spacing: .08em;
+    color: var(--encre);
+    opacity: .65;
+    background: rgba(253,249,244,.55);
+    border: 1px solid rgba(201,164,92,.35);
+    border-radius: 999px;
+    padding: 4px 14px;
+  }
+  /* Bouton musique (haut droite), discret */
+  #bouton-musique {
+    position: fixed;
+    top: 12px; right: 12px;
+    width: 40px; height: 40px;
+    display: none;                  /* affiché seulement si une musique est configurée */
+    align-items: center; justify-content: center;
+    font-size: 1.1rem;
+    color: var(--encre);
+    background: rgba(253,249,244,.55);
+    border: 1px solid rgba(201,164,92,.35);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 6;
+    transition: opacity .3s, background .3s;
+  }
+  #bouton-musique.coupe { opacity: .45; }
+  #consigne {
+    display: block;
+    margin-top: 6px;
+    font-size: .8rem;
+    font-style: italic;
+    opacity: .55;
+    transition: opacity 1s;
+  }
+
+  /* ── Éléments qui tombent (pétales de fond, pluies de fleurs,
+        célébration finale). Deux couches d'animation pour un
+        mouvement réaliste : l'enveloppe descend en dérivant,
+        la forme intérieure oscille et tournoie en 3D. ─────────── */
+  .tombant {
+    position: fixed;
+    top: -50px;
+    pointer-events: none;
+    z-index: 1;
+    animation: chute linear forwards;
+  }
+  @keyframes chute {
+    to { transform: translate(var(--derive), 115vh); }
+  }
+  /* Pétale « réaliste » : forme de goutte incurvée avec dégradé,
+     nervure ombrée, et vacillement 3D façon feuille morte */
+  .petale-forme {
+    display: block;
+    width: var(--taille, 20px);
+    height: calc(var(--taille, 20px) * .82);
+    background: radial-gradient(ellipse at 28% 22%, #fff2f7 0%, #f2bcd0 45%, #d68ba9 85%, #c47795 100%);
+    border-radius: 155% 25% 155% 25%;
+    box-shadow: inset -2px -3px 6px rgba(160,85,115,.45), 0 1px 3px rgba(107,74,88,.15);
+    opacity: .9;
+    animation: balance ease-in-out infinite alternate;
+  }
+  /* Fleur (emoji) qui tombe avec la même oscillation */
+  .fleur-tombe {
+    display: block;
+    line-height: 1;
+    filter: drop-shadow(0 2px 3px rgba(107,74,88,.25));
+    animation: balance ease-in-out infinite alternate;
+  }
+  @keyframes balance {
+    from { transform: translateX(-16px) rotate3d(1, .6, 0, -65deg) rotate(-32deg); }
+    to   { transform: translateX(16px)  rotate3d(1, .6, 0,  65deg) rotate(38deg); }
+  }
+
+  /* ── Les zones à découvrir ────────────────────────────────── */
+  .zone {
+    position: fixed;
+    width: 58px; height: 58px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: rgba(253,249,244,.5);
+    border: 2px dashed rgba(201,164,92,.55);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    z-index: 2;
+    transition: box-shadow .6s, background .6s, border .6s, transform .3s, opacity .35s;
+  }
+  /* Zone non découverte : invisible tant que la fleur est loin.
+     L'opacité est pilotée en continu par le script selon la distance. */
+  .zone:not(.decouverte) { opacity: 0; }
+  /* Petite pulsation discrète tant que la zone n'est pas trouvée */
+  .zone:not(.decouverte)::after {
+    content: "";
+    position: absolute; inset: -6px;
+    border-radius: 50%;
+    border: 1px solid rgba(217,163,184,.5);
+    animation: pulse 2.6s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(.9); opacity: .2; }
+    50%      { transform: scale(1.08); opacity: .7; }
+  }
+  /* Zone découverte : fleur plantée + halo doré */
+  .zone.decouverte {
+    border: 2px solid var(--or);
+    background: rgba(253,249,244,.85);
+    box-shadow: 0 0 18px 4px var(--or-clair), 0 0 40px 8px rgba(201,164,92,.25);
+  }
+  /* Zone survolée par la fleur pendant le drag */
+  .zone.visee { transform: translate(-50%, -50%) scale(1.18); background: rgba(253,249,244,.85); }
+
+  /* ── La fleur à faire glisser ─────────────────────────────── */
+  #fleur {
+    position: fixed;
+    font-size: 52px;
+    line-height: 1;
+    transform: translate(-50%, -50%);
+    cursor: grab;
+    z-index: 10;
+    touch-action: none;             /* indispensable pour le drag tactile */
+    filter: drop-shadow(0 6px 8px rgba(107,74,88,.3));
+    animation: flotte 3.2s ease-in-out infinite;
+  }
+  #fleur.saisie { cursor: grabbing; animation: none; transform: translate(-50%, -50%) scale(1.15); }
+  #fleur.retour { transition: left .7s cubic-bezier(.22,1.2,.36,1), top .7s cubic-bezier(.22,1.2,.36,1); }
+  @keyframes flotte {
+    0%, 100% { margin-top: 0; }
+    50%      { margin-top: -8px; }
+  }
+
+  /* ── Carte souvenir ───────────────────────────────────────── */
+  #voile {
+    position: fixed; inset: 0;
+    background: rgba(107,74,88,.25);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 20;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .5s ease;
+  }
+  #voile.visible { opacity: 1; pointer-events: auto; }
+
+  #carte {
+    position: relative;
+    width: min(88vw, 380px);
+    background: var(--creme);
+    border: 1px solid var(--or-clair);
+    border-radius: 18px;
+    padding: 34px 28px 26px;
+    text-align: center;
+    box-shadow: 0 12px 40px rgba(107,74,88,.3), inset 0 0 0 4px rgba(201,164,92,.12);
+    transform: scale(.88) translateY(12px);
+    transition: transform .5s cubic-bezier(.22,1.3,.36,1);
+  }
+  #voile.visible #carte { transform: scale(1) translateY(0); }
+
+  #carte-image {
+    display: none;                  /* affichée seulement si le message a une image */
+    width: 100%;
+    max-height: 220px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid var(--or-clair);
+    box-shadow: 0 4px 14px rgba(107,74,88,.18);
+    margin-bottom: 16px;
+  }
+  #carte-titre {
+    font-family: var(--police-cursive);
+    font-size: 1.6rem;
+    color: var(--or);
+    margin-bottom: 12px;
+  }
+  #carte-texte {
+    font-family: var(--police-cursive);
+    font-size: 1.35rem;
+    line-height: 1.6;
+    color: var(--encre);
+  }
+  #carte-bouton {
+    margin-top: 22px;
+    font-family: var(--police-texte);
+    font-size: .9rem;
+    letter-spacing: .06em;
+    color: var(--creme);
+    background: var(--rose-fonce);
+    border: none;
+    border-radius: 999px;
+    padding: 10px 28px;
+    cursor: pointer;
+    transition: background .3s, transform .2s;
+  }
+  #carte-bouton:hover { background: var(--or); transform: translateY(-2px); }
+
+  /* Particules autour de la carte (pétales, cœurs, étincelles) */
+  .particule {
+    position: absolute;
+    left: 50%; top: 50%;
+    font-size: 18px;
+    pointer-events: none;
+    animation: eclat 1.4s ease-out forwards;
+  }
+  @keyframes eclat {
+    0%   { transform: translate(-50%, -50%) scale(.4); opacity: 0; }
+    20%  { opacity: 1; }
+    100% { transform: translate(calc(-50% + var(--px)), calc(-50% + var(--py))) scale(1) rotate(var(--rot)); opacity: 0; }
+  }
+
+  /* ── Scène finale ─────────────────────────────────────────── */
+  #final {
+    position: fixed; inset: 0;
+    background: linear-gradient(170deg, var(--creme), var(--rose));
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding: 24px;
+    z-index: 30;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 1.2s ease;
+  }
+  #final.visible { opacity: 1; pointer-events: auto; }
+  #final-titre {
+    font-family: var(--police-cursive);
+    font-size: clamp(2rem, 7vw, 3.2rem);
+    color: var(--or);
+    margin-bottom: 20px;
+  }
+  #final-texte {
+    font-family: var(--police-cursive);
+    font-size: clamp(1.3rem, 4.5vw, 1.8rem);
+    line-height: 1.7;
+    max-width: 560px;
+    color: var(--encre);
+  }
+  /* Étincelle dorée de la célébration finale */
+  .etincelle {
+    display: block;
+    line-height: 1;
+    color: var(--or);
+    text-shadow: 0 0 6px var(--or-clair), 0 0 14px rgba(201,164,92,.6);
+    animation: balance ease-in-out infinite alternate, scintille .9s ease-in-out infinite;
+  }
+  @keyframes scintille {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: .35; }
+  }
+</style>
+</head>
+<body>
+
+  <header>
+    <h1>Un jardin de souvenirs, rien que pour toi</h1>
+    <span id="compteur"></span>
+    <span id="consigne">Promène la fleur sur la page pour trouver les souvenirs cachés…</span>
+  </header>
+
+  <!-- Bouton pour couper / remettre la musique -->
+  <button id="bouton-musique" aria-label="Couper ou remettre la musique">♪</button>
+
+  <!-- La fleur à déplacer -->
+  <div id="fleur" aria-label="Fleur à faire glisser">🌸</div>
+
+  <!-- Carte souvenir (remplie par le script) -->
+  <div id="voile">
+    <div id="carte">
+      <img id="carte-image" alt="">
+      <div id="carte-titre"></div>
+      <div id="carte-texte"></div>
+      <button id="carte-bouton">Continuer 🌷</button>
+    </div>
+  </div>
+
+  <!-- Scène finale (remplie par le script) -->
+  <div id="final">
+    <div id="final-titre"></div>
+    <div id="final-texte"></div>
+  </div>
+
+<script>
+/* ═════════════════════════════════════════════════════════════
+   ✏️  ZONE À PERSONNALISER — tes messages
+   ─────────────────────────────────────────────────────────────
+   - titre : petit titre affiché en haut de la carte
+   - texte : ton mot doux ou souvenir
+   - x, y  : position de la zone en % de l'écran (8 à 92 conseillé)
+   Ajoute ou retire des entrées librement : tout s'adapte.
+   ═════════════════════════════════════════════════════════════ */
+const messages = [
+  { id: 1, titre: "Notre rencontre",   texte: "Tu étais toute timide, mais j'ai adoré prendre tes mains dans les miennes.",        fleur: "🌷", image: "images/1.jpg", x: 16, y: 26 },
+  { id: 2, titre: "Ton rire",          texte: "Mon cœur bat toujours au rythme de tes éclats de rire.",        fleur: "🌹", image: "images/2.jpg", x: 50, y: 18 },
+  { id: 3, titre: "Nos voyages",         texte: "Traîner avec toi en voiture me fait apprécier chaque seconde de la vie.",        fleur: "🌺", image: "images/3.jpg", x: 84, y: 26 },
+  { id: 4, titre: "Te voir faire", texte: "J'adore te voir t'énerver pour de petites choses.",           fleur: "🌼", image: "images/4.jpg", x: 12, y: 55 },
+  { id: 5, titre: "Notre Danse",     texte: "Un moment hors du temps, au milieu de la nature.",       fleur: "🪻", image: "images/5.jpg", x: 88, y: 55 },
+  { id: 6, titre: "Nos fou rires",       texte: "Plein de jolis moments drôles",          fleur: "🌻", image: "images/6.jpg", x: 20, y: 82 },
+  { id: 7, titre: "Une promesse",      texte: "Au début de notre relation, je t'avais fait une promesse et je garde toujours mes promesses.",           fleur: "🪷", image: "", x: 50, y: 88 },
+  { id: 8, titre: "Aujourd'hui",       texte: "La distance rend difficiles les choses, mais je garde autant d'amour envers toi, qu'il me tarde de te donner.",    fleur: "💐", image: "", x: 80, y: 82 },
+];
+
+/* ✏️  Message final, affiché quand tout est découvert */
+const messageFinal = {
+  titre: "Je te veux encore ",
+  texte: "Je te veux dans mes bras, je veux embrasser tout ton corps, tes mains, tes yeux et tes jambes, que tu dormes sur moi comme un chaton, je veux encore qu'on danse ensemble sans être gênés par les gens autour, je veux qu'on puisse découvrir de nouvelles activités ensemble, je veux qu'on puisse encore s'entraider dans les moments de difficulté et, surtout, je veux que tu sois heureuse. Donc, quoi qu'il en soit dans cette vie, et même si j'ai souvent du mal à le voir, je suis sûr que le bonheur nous attend quelque part."
+};
+
+/* ✏️  Musique de fond : nom du fichier audio (placé à côté de
+    index.html) et volume entre 0 et 1. fichier: "" = pas de musique. */
+const musique = {
+  fichier: "Childish.mp3",
+  volume: 0.35,
+};
+
+/* ═════════════════════════════════════════════════════════════
+   Le code ci-dessous n'a pas besoin d'être modifié.
+   ═════════════════════════════════════════════════════════════ */
+
+/* ── Musique de fond ─────────────────────────────────────────
+   Démarre au premier toucher de la fleur (les navigateurs
+   bloquent l'autoplay sonore avant une interaction). */
+const boutonMusique = document.getElementById("bouton-musique");
+let audio = null;
+
+if (musique.fichier) {
+  audio = new Audio(musique.fichier);
+  audio.loop = true;
+  audio.volume = musique.volume;
+  // Le bouton n'apparaît que si le fichier existe vraiment
+  audio.addEventListener("canplaythrough", () => { boutonMusique.style.display = "flex"; }, { once: true });
+  audio.addEventListener("error", () => { audio = null; });
+}
+
+function demarrerMusique() {
+  if (audio && audio.paused && !boutonMusique.classList.contains("coupe")) {
+    audio.play().catch(() => {});     // si le navigateur refuse, on réessaiera au prochain toucher
+  }
+}
+
+boutonMusique.addEventListener("click", () => {
+  if (!audio) return;
+  if (audio.paused) {
+    boutonMusique.classList.remove("coupe");
+    audio.play().catch(() => {});
+  } else {
+    audio.pause();
+    boutonMusique.classList.add("coupe");
+  }
+});
+
+const fleur    = document.getElementById("fleur");
+const compteur = document.getElementById("compteur");
+const consigne = document.getElementById("consigne");
+const voile    = document.getElementById("voile");
+const carte    = document.getElementById("carte");
+
+const decouvertes = new Set();      // ids des zones déjà trouvées
+let zoneCourante  = null;           // zone dont la carte est affichée
+
+/* ── Création des zones à partir du tableau messages ────────── */
+messages.forEach(m => {
+  const z = document.createElement("div");
+  z.className = "zone";
+  z.dataset.id = m.id;
+  z.style.left = m.x + "%";
+  z.style.top  = m.y + "%";
+  document.body.appendChild(z);
+});
+const zones = [...document.querySelectorAll(".zone")];
+
+function majCompteur() {
+  compteur.textContent = decouvertes.size + "/" + messages.length + " souvenirs découverts";
+}
+majCompteur();
+
+/* ── Position "maison" de la fleur (centre de l'écran) ──────── */
+function posMaison() {
+  return { x: innerWidth / 2, y: innerHeight * 0.5 };
+}
+function placerFleur(x, y) {
+  fleur.style.left = x + "px";
+  fleur.style.top  = y + "px";
+}
+placerFleur(posMaison().x, posMaison().y);
+addEventListener("resize", () => {          // recentre si l'écran change
+  if (!drag) { const p = posMaison(); placerFleur(p.x, p.y); }
+});
+
+/* ── Drag & drop (Pointer Events : souris ET tactile) ───────── */
+let drag = false;
+
+fleur.addEventListener("pointerdown", e => {
+  demarrerMusique();                    // premier toucher = feu vert du navigateur pour le son
+  drag = true;
+  fleur.setPointerCapture(e.pointerId);
+  fleur.classList.add("saisie");
+  fleur.classList.remove("retour");
+  placerFleur(e.clientX, e.clientY);
+  revelerZones(e.clientX, e.clientY);
+});
+
+fleur.addEventListener("pointermove", e => {
+  if (!drag) return;
+  placerFleur(e.clientX, e.clientY);
+  revelerZones(e.clientX, e.clientY);   // les zones proches apparaissent
+  // Met en avant la zone survolée (uniquement la prochaine de la séquence)
+  const z = zoneSous(e.clientX, e.clientY);
+  zones.forEach(el => el.classList.toggle("visee",
+    el === z && !el.classList.contains("decouverte") && Number(el.dataset.id) === prochainId()));
+});
+
+fleur.addEventListener("pointerup", e => {
+  if (!drag) return;
+  drag = false;
+  fleur.classList.remove("saisie");
+  zones.forEach(el => el.classList.remove("visee"));
+  cacherZones();                        // les zones non trouvées se rendorment
+
+  const z = zoneSous(e.clientX, e.clientY);
+  // Seule la prochaine zone de la séquence (ordre des id) est découvrable
+  if (z && !z.classList.contains("decouverte") && Number(z.dataset.id) === prochainId()) {
+    decouvrir(z);                       // nouvelle zone : on ouvre la carte
+  }
+  retourMaison();                       // la fleur revient toujours au centre
+});
+fleur.addEventListener("pointercancel", () => { drag = false; fleur.classList.remove("saisie"); cacherZones(); retourMaison(); });
+
+/* ── Révélation progressive des zones cachées ───────────────
+   Une zone non découverte est invisible ; elle apparaît en fondu
+   quand la fleur s'en approche : totalement visible à moins de
+   PLEINE px, invisible au-delà de LIMITE px, dégradé entre les deux. */
+const PLEINE = 70, LIMITE = 190;
+
+/* Les souvenirs se découvrent dans l'ordre des id (1, puis 2, …) :
+   seule la prochaine zone de la séquence peut se révéler. */
+function prochainId() {
+  const restants = messages.map(m => m.id).filter(id => !decouvertes.has(id));
+  return restants.length ? Math.min(...restants) : null;
+}
+
+function revelerZones(x, y) {
+  const suivant = prochainId();
+  zones.forEach(z => {
+    if (z.classList.contains("decouverte")) return;
+    if (Number(z.dataset.id) !== suivant) { z.style.opacity = "0"; return; }
+    const r = z.getBoundingClientRect();
+    const d = Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2));
+    z.style.opacity = Math.max(0, Math.min(1, (LIMITE - d) / (LIMITE - PLEINE)));
+  });
+}
+/* Ré-efface les zones non découvertes (fin du drag) */
+function cacherZones() {
+  zones.forEach(z => { if (!z.classList.contains("decouverte")) z.style.opacity = ""; });
+}
+
+/* Renvoie la zone dont le centre est proche du point (x, y) */
+function zoneSous(x, y) {
+  return zones.find(z => {
+    const r = z.getBoundingClientRect();
+    const dx = x - (r.left + r.width / 2);
+    const dy = y - (r.top + r.height / 2);
+    return Math.hypot(dx, dy) < r.width / 2 + 30;   // marge de 30px, tolérant au doigt
+  }) || null;
+}
+
+/* Ramène la fleur au centre en douceur */
+function retourMaison() {
+  fleur.classList.add("retour");
+  const p = posMaison();
+  requestAnimationFrame(() => placerFleur(p.x, p.y));
+  setTimeout(() => fleur.classList.remove("retour"), 750);
+}
+
+/* ── Découverte d'une zone ──────────────────────────────────── */
+function decouvrir(zone) {
+  const id = Number(zone.dataset.id);
+  const m  = messages.find(msg => msg.id === id);
+  decouvertes.add(id);
+  zone.classList.add("decouverte");
+  zone.style.opacity = "";              // la classe .decouverte la garde visible
+  zone.textContent = m.fleur;           // la fleur du souvenir reste plantée
+  zoneCourante = zone;
+  majCompteur();
+  consigne.style.opacity = 0;           // la consigne s'efface après le 1er essai
+
+  // Remplit et affiche la carte (photo seulement si le message en a une)
+  const img = document.getElementById("carte-image");
+  img.style.display = "none";
+  if (m.image) {
+    img.src = m.image;
+    img.onload  = () => { img.style.display = "block"; };
+    img.onerror = () => { img.style.display = "none"; };  // chemin cassé : carte sans photo
+  }
+  document.getElementById("carte-titre").textContent = m.titre;
+  document.getElementById("carte-texte").textContent = m.texte;
+  voile.classList.add("visible");
+  eclatDeParticules();
+  pluieDeFleurs(m.fleur);               // pluie de la fleur découverte
+}
+
+/* ── Fabrique un élément qui tombe du haut de l'écran ─────────
+   opts : emoji (sinon pétale CSS), taille en px, duree en s,
+          z (couche d'affichage), classe (forme spéciale)        */
+function faireTomber(opts = {}) {
+  const env = document.createElement("div");
+  env.className = "tombant";
+  env.style.left = Math.random() * 100 + "vw";
+  env.style.zIndex = opts.z || 1;
+  env.style.setProperty("--derive", (Math.random() * 180 - 90) + "px");
+  const duree = opts.duree || 10;
+  env.style.animationDuration = duree + "s";
+
+  const forme = document.createElement("span");
+  if (opts.emoji) {
+    forme.className = opts.classe || "fleur-tombe";
+    forme.textContent = opts.emoji;
+    forme.style.fontSize = (opts.taille || 22) + "px";
+  } else {
+    forme.className = "petale-forme";
+    forme.style.setProperty("--taille", (opts.taille || 20) + "px");
+    // légère variation de teinte pour des pétales tous différents
+    forme.style.filter = "hue-rotate(" + (Math.random() * 26 - 13) + "deg)";
+  }
+  // oscillation propre à chaque élément (vitesse + phase décalée)
+  forme.style.animationDuration = (1.3 + Math.random() * 1.5) + "s";
+  forme.style.animationDelay = (-Math.random() * 3) + "s";
+
+  env.appendChild(forme);
+  document.body.appendChild(env);
+  setTimeout(() => env.remove(), duree * 1000 + 500);
+}
+
+/* Pluie de la fleur découverte (par-dessus la carte) */
+function pluieDeFleurs(fleur) {
+  for (let i = 0; i < 28; i++) {
+    setTimeout(() => faireTomber({
+      emoji: fleur,
+      taille: 18 + Math.random() * 20,
+      duree: 3.5 + Math.random() * 3,
+      z: 25,
+    }), i * 90);
+  }
+}
+
+/* Particules (pétales, cœurs, étincelles) autour de la carte */
+function eclatDeParticules() {
+  const symboles = ["❀", "♡", "✦", "❀", "♡"];
+  const couleurs = ["#d9a3b8", "#c9a45c", "#e8b4c8"];
+  for (let i = 0; i < 16; i++) {
+    const p = document.createElement("span");
+    p.className = "particule";
+    p.textContent = symboles[i % symboles.length];
+    p.style.color = couleurs[i % couleurs.length];
+    const angle = (i / 16) * Math.PI * 2;
+    const dist  = 130 + Math.random() * 90;
+    p.style.setProperty("--px", Math.cos(angle) * dist + "px");
+    p.style.setProperty("--py", Math.sin(angle) * dist + "px");
+    p.style.setProperty("--rot", (Math.random() * 240 - 120) + "deg");
+    carte.appendChild(p);
+    setTimeout(() => p.remove(), 1500);
+  }
+}
+
+/* Fermeture de la carte → scène finale si tout est découvert */
+document.getElementById("carte-bouton").addEventListener("click", () => {
+  voile.classList.remove("visible");
+  if (decouvertes.size === messages.length) {
+    setTimeout(sceneFinale, 500);
+  }
+});
+
+/* ── Scène finale + célébration ─────────────────────────────── */
+function sceneFinale() {
+  document.getElementById("final-titre").textContent = messageFinal.titre;
+  document.getElementById("final-texte").textContent = messageFinal.texte;
+  document.getElementById("final").classList.add("visible");
+
+  // Grande pluie mêlant pétales réalistes, toutes les fleurs
+  // découvertes et étincelles dorées, dense pendant ~12 secondes
+  const fleurs = messages.map(m => m.fleur);
+  const pluie = setInterval(() => {
+    const tirage = Math.random();
+    if (tirage < 0.45) {
+      // pétale réaliste, bien visible
+      faireTomber({ taille: 18 + Math.random() * 18, duree: 4 + Math.random() * 4, z: 31 });
+    } else if (tirage < 0.85) {
+      // une des fleurs des souvenirs
+      faireTomber({
+        emoji: fleurs[Math.floor(Math.random() * fleurs.length)],
+        taille: 20 + Math.random() * 22,
+        duree: 4 + Math.random() * 4,
+        z: 31,
+      });
+    } else {
+      // étincelle dorée qui scintille
+      faireTomber({ emoji: "✦", classe: "etincelle", taille: 12 + Math.random() * 14, duree: 3.5 + Math.random() * 3, z: 31 });
+    }
+  }, 55);
+  setTimeout(() => clearInterval(pluie), 12000);
+}
+
+/* ── Pétales qui tombent doucement en arrière-plan ──────────── */
+setInterval(() => {
+  faireTomber({ taille: 14 + Math.random() * 16, duree: 8 + Math.random() * 7 });
+}, 550);
+</script>
+</body>
+</html>
